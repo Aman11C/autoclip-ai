@@ -1,0 +1,28 @@
+[Script Info]
+Title: AutoClip AI Dynamic Captions
+ScriptType: v4.00+
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+YCbCr Matrix: None
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial Black,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,4,2,2,60,60,260,1
+Style: TopHook,Impact,52,&H00FFFFFF,&H0000FFFF,&H000B0314,&H90000000,1,0,0,0,100,100,0,0,1,5,3,8,50,50,170,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.60,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}UNTIL{\r} {\fscx100\fscy100}YESTERDAY
+Dialogue: 0,0:00:00.60,0:00:01.50,Default,,0,0,0,,{\fscx100\fscy100}UNTIL {\fscx108\fscy108\c&H00D7FF&}YESTERDAY{\r}
+Dialogue: 0,0:00:01.60,0:00:01.80,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}AT{\r} {\fscx100\fscy100}MIDNIGHT
+Dialogue: 0,0:00:01.80,0:00:02.70,Default,,0,0,0,,{\fscx100\fscy100}AT {\fscx108\fscy108\c&H00D7FF&}MIDNIGHT{\r}
+Dialogue: 0,0:00:02.90,0:00:03.20,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}MY{\r} {\fscx100\fscy100}SHADOW
+Dialogue: 0,0:00:03.20,0:00:03.80,Default,,0,0,0,,{\fscx100\fscy100}MY {\fscx108\fscy108\c&H00D7FF&}SHADOW{\r}
+Dialogue: 0,0:00:03.80,0:00:04.10,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}WAS{\r} {\fscx100\fscy100}SCREAMING
+Dialogue: 0,0:00:04.10,0:00:05.30,Default,,0,0,0,,{\fscx100\fscy100}WAS {\fscx108\fscy108\c&H00D7FF&}SCREAMING{\r}
+Dialogue: 0,0:00:05.50,0:00:06.30,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}CLAWING{\r} {\fscx100\fscy100}AT
+Dialogue: 0,0:00:06.30,0:00:06.60,Default,,0,0,0,,{\fscx100\fscy100}CLAWING {\fscx108\fscy108\c&H00D7FF&}AT{\r}
+Dialogue: 0,0:00:06.60,0:00:06.80,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}ITS{\r} {\fscx100\fscy100}THROAT
+Dialogue: 0,0:00:06.80,0:00:07.70,Default,,0,0,0,,{\fscx100\fscy100}ITS {\fscx108\fscy108\c&H00D7FF&}THROAT{\r}

@@ -1,0 +1,33 @@
+[Script Info]
+Title: AutoClip AI Dynamic Captions
+ScriptType: v4.00+
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+YCbCr Matrix: None
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Segoe UI,56,&H00F0F0F0,&H0038BDF8,&H00111827,&H99000000,1,0,0,0,100,100,0,0,1,2,1,2,60,60,240,1
+Style: TopHook,Impact,52,&H00FFFFFF,&H0000FFFF,&H000B0314,&H90000000,1,0,0,0,100,100,0,0,1,5,3,8,50,50,170,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.30,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}THERE{\r} {\fscx100\fscy100}WAS
+Dialogue: 0,0:00:00.30,0:00:00.60,Default,,0,0,0,,{\fscx100\fscy100}THERE {\fscx108\fscy108\c&H38BDF8&}WAS{\r}
+Dialogue: 0,0:00:00.60,0:00:01.00,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}ONLY{\r} {\fscx100\fscy100}ONE
+Dialogue: 0,0:00:01.00,0:00:01.30,Default,,0,0,0,,{\fscx100\fscy100}ONLY {\fscx108\fscy108\c&H38BDF8&}ONE{\r}
+Dialogue: 0,0:00:01.30,0:00:02.10,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}RULE{\r} {\fscx100\fscy100}WHATEVER
+Dialogue: 0,0:00:02.10,0:00:02.70,Default,,0,0,0,,{\fscx100\fscy100}RULE {\fscx108\fscy108\c&H38BDF8&}WHATEVER{\r}
+Dialogue: 0,0:00:02.70,0:00:02.90,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}YOUR{\r} {\fscx100\fscy100}SHADOW
+Dialogue: 0,0:00:02.90,0:00:03.50,Default,,0,0,0,,{\fscx100\fscy100}YOUR {\fscx108\fscy108\c&H38BDF8&}SHADOW{\r}
+Dialogue: 0,0:00:03.50,0:00:04.10,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}DOES{\r} {\fscx100\fscy100}YOUR
+Dialogue: 0,0:00:04.10,0:00:04.30,Default,,0,0,0,,{\fscx100\fscy100}DOES {\fscx108\fscy108\c&H38BDF8&}YOUR{\r}
+Dialogue: 0,0:00:04.30,0:00:04.80,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}BODY{\r} {\fscx100\fscy100}WILL
+Dialogue: 0,0:00:04.80,0:00:05.10,Default,,0,0,0,,{\fscx100\fscy100}BODY {\fscx108\fscy108\c&H38BDF8&}WILL{\r}
+Dialogue: 0,0:00:05.10,0:00:06.00,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}FOLLOW{\r} {\fscx100\fscy100}YOU
+Dialogue: 0,0:00:06.00,0:00:06.30,Default,,0,0,0,,{\fscx100\fscy100}FOLLOW {\fscx108\fscy108\c&H38BDF8&}YOU{\r}
+Dialogue: 0,0:00:06.30,0:00:06.90,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}CANNOT{\r} {\fscx100\fscy100}FIGHT
+Dialogue: 0,0:00:06.90,0:00:07.60,Default,,0,0,0,,{\fscx100\fscy100}CANNOT {\fscx108\fscy108\c&H38BDF8&}FIGHT{\r}
+Dialogue: 0,0:00:07.60,0:00:08.00,Default,,0,0,0,,{\fscx108\fscy108\c&H38BDF8&}IT{\r}

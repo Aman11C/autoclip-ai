@@ -1,0 +1,31 @@
+[Script Info]
+Title: AutoClip AI Dynamic Captions
+ScriptType: v4.00+
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+YCbCr Matrix: None
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial Black,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,4,2,2,60,60,260,1
+Style: TopHook,Impact,52,&H00FFFFFF,&H0000FFFF,&H000B0314,&H90000000,1,0,0,0,100,100,0,0,1,5,3,8,50,50,170,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.30,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}IN{\r} {\fscx100\fscy100}OUR
+Dialogue: 0,0:00:00.30,0:00:00.60,Default,,0,0,0,,{\fscx100\fscy100}IN {\fscx108\fscy108\c&H00D7FF&}OUR{\r}
+Dialogue: 0,0:00:00.60,0:00:01.10,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}TOWN{\r} {\fscx100\fscy100}YOUR
+Dialogue: 0,0:00:01.10,0:00:01.40,Default,,0,0,0,,{\fscx100\fscy100}TOWN {\fscx108\fscy108\c&H00D7FF&}YOUR{\r}
+Dialogue: 0,0:00:01.40,0:00:01.90,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}SHADOW{\r} {\fscx100\fscy100}COPIES
+Dialogue: 0,0:00:01.90,0:00:02.40,Default,,0,0,0,,{\fscx100\fscy100}SHADOW {\fscx108\fscy108\c&H00D7FF&}COPIES{\r}
+Dialogue: 0,0:00:02.40,0:00:02.70,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}WHAT{\r} {\fscx100\fscy100}YOU
+Dialogue: 0,0:00:02.70,0:00:02.90,Default,,0,0,0,,{\fscx100\fscy100}WHAT {\fscx108\fscy108\c&H00D7FF&}YOU{\r}
+Dialogue: 0,0:00:02.90,0:00:03.20,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}WILL{\r} {\fscx100\fscy100}DO
+Dialogue: 0,0:00:03.20,0:00:03.60,Default,,0,0,0,,{\fscx100\fscy100}WILL {\fscx108\fscy108\c&H00D7FF&}DO{\r}
+Dialogue: 0,0:00:03.60,0:00:04.10,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}THREE{\r} {\fscx100\fscy100}SECONDS
+Dialogue: 0,0:00:04.10,0:00:04.80,Default,,0,0,0,,{\fscx100\fscy100}THREE {\fscx108\fscy108\c&H00D7FF&}SECONDS{\r}
+Dialogue: 0,0:00:04.80,0:00:05.20,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}INTO{\r} {\fscx100\fscy100}THE
+Dialogue: 0,0:00:05.20,0:00:05.40,Default,,0,0,0,,{\fscx100\fscy100}INTO {\fscx108\fscy108\c&H00D7FF&}THE{\r}
+Dialogue: 0,0:00:05.40,0:00:06.20,Default,,0,0,0,,{\fscx108\fscy108\c&H00D7FF&}FUTURE{\r}
