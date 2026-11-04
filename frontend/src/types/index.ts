@@ -34,6 +34,9 @@ export interface Clip {
   preview_url?: string;
   hook_title?: string;
   auto_emojis?: boolean;
+  youtube_title?: string;
+  youtube_description?: string;
+  youtube_tags?: string;
   variants: ClipVariant[];
 }
 

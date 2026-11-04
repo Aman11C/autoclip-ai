@@ -61,6 +61,9 @@ class Clip(Base):
     reason = Column(Text, default="")
     category = Column(String(128), default="General") # Storytelling, Emotional Hook, Punchline, etc.
     preview_url = Column(String(1024), nullable=True)
+    youtube_title = Column(String(512), nullable=True)
+    youtube_description = Column(Text, nullable=True)
+    youtube_tags = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_utc_now)
     
     project = relationship("Project", back_populates="clips")
@@ -110,6 +113,22 @@ class Job(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Check for missing columns in existing SQLite db
+    with engine.connect() as conn:
+        try:
+            from sqlalchemy import text
+            result = conn.execute(text("PRAGMA table_info(clips)")).fetchall()
+            existing_cols = {row[1] for row in result}
+            if "youtube_title" not in existing_cols:
+                conn.execute(text("ALTER TABLE clips ADD COLUMN youtube_title VARCHAR(512)"))
+            if "youtube_description" not in existing_cols:
+                conn.execute(text("ALTER TABLE clips ADD COLUMN youtube_description TEXT"))
+            if "youtube_tags" not in existing_cols:
+                conn.execute(text("ALTER TABLE clips ADD COLUMN youtube_tags TEXT"))
+            conn.commit()
+        except Exception as e:
+            print(f"[DB] Migration check notice: {e}")
+
     # Ensure default user
     db = SessionLocal()
     try:

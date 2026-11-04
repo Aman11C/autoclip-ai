@@ -6,13 +6,12 @@ import {
   Pause, 
   Download, 
   Sliders, 
-  Trash2, 
-  Sparkles, 
   Clock, 
   Flame, 
-  Maximize2,
-  RefreshCw,
-  Tag
+  Check, 
+  Copy, 
+  Sparkles,
+  Share2
 } from 'lucide-react';
 import { Clip } from '../types';
 
@@ -25,6 +24,7 @@ interface ClipCardProps {
 
 export default function ClipCard({ clip, onOpenEditor, onDownload, onDelete }: ClipCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [copiedYt, setCopiedYt] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const togglePlay = (e: React.MouseEvent) => {
@@ -53,14 +53,19 @@ export default function ClipCard({ clip, onOpenEditor, onDownload, onDelete }: C
     }
   };
 
-  // Virality score badge colors
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'from-emerald-500 to-teal-400 border-emerald-400/40 text-emerald-300';
-    if (score >= 80) return 'from-purple-500 to-indigo-400 border-purple-400/40 text-purple-300';
-    return 'from-blue-500 to-cyan-400 border-blue-400/40 text-blue-300';
+  const handleCopyYouTube = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const title = clip.youtube_title || `🔥 ${clip.title} 🤯 #shorts`;
+    const desc = clip.youtube_description || `${clip.title}\n\n👉 Subscribe for daily viral moments!\n\n#shorts #viral #trending #fyp`;
+    const text = `TITLE:\n${title}\n\nDESCRIPTION:\n${desc}\n\nTAGS:\n${clip.youtube_tags || 'shorts, viral, trending'}`;
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedYt(true);
+      setTimeout(() => setCopiedYt(false), 2200);
+    }
   };
 
-  // Determine which preview URL to show (newest variant or updated clip preview)
+  // Determine preview URL
   const activeVariant = clip.variants && clip.variants.length > 0
     ? clip.variants[0]
     : null;
@@ -68,99 +73,124 @@ export default function ClipCard({ clip, onOpenEditor, onDownload, onDelete }: C
   const videoSrc = clip.preview_url || activeVariant?.output_url || '/static/demo/clip_demo_01_VIRAL_PODCAST.mp4';
   const editingStyle = activeVariant?.editing_style || 'VIRAL_PODCAST';
 
+  // Format seconds to mm:ss
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
   return (
     <div 
-      className="glass-card rounded-2xl overflow-hidden flex flex-col group cursor-pointer"
+      className="group relative rounded-3xl bg-card border border-border hover:border-electric overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-electric/20 cursor-pointer"
       onClick={() => onOpenEditor(clip)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* 9:16 Vertical Preview Container */}
-      <div className="relative aspect-[9/16] w-full bg-slate-950 overflow-hidden">
+      <div className="relative aspect-[9/16] w-full bg-[#0A0C16] overflow-hidden">
         <video
           ref={videoRef}
           src={videoSrc}
           loop
           muted
           playsInline
-          className="w-full h-full object-cover"
-          onEnded={() => setIsPlaying(false)}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
 
-        {/* Top Badges Overlay */}
+        {/* Video Overlaid Dark Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0C16] via-transparent to-black/40 pointer-events-none" />
+
+        {/* Top Badges: Virality Score & Duration */}
         <div className="absolute top-3 inset-x-3 flex items-center justify-between z-10 pointer-events-none">
-          {/* Virality Score Badge */}
-          <div className={`px-2.5 py-1 rounded-full text-xs font-black bg-gradient-to-r ${getScoreColor(clip.virality_score)} bg-black/60 backdrop-blur-md border flex items-center gap-1 shadow-lg`}>
-            <Flame className="w-3.5 h-3.5 fill-current" />
-            <span>{clip.virality_score}</span>
-            <span className="text-[10px] opacity-75 font-normal">/100</span>
+          {/* Neon Yellow Virality Badge */}
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-neon text-black font-display font-black text-xs shadow-lg">
+            <Flame className="w-3.5 h-3.5 fill-black" />
+            <span>{clip.virality_score}% VIRAL</span>
           </div>
 
           {/* Duration Badge */}
-          <div className="px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-black/70 backdrop-blur-md text-white border border-white/10 flex items-center gap-1">
-            <Clock className="w-2.5 h-2.5 text-accent-cyan" />
-            <span>{clip.duration.toFixed(1)}s</span>
+          <div className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md border border-border text-[11px] font-mono font-bold text-white flex items-center gap-1">
+            <Clock className="w-3 h-3 text-neon" />
+            <span>{Math.round(clip.duration)}s</span>
           </div>
         </div>
 
-        {/* Play / Pause Toggle Button Overlay */}
-        <button
-          onClick={togglePlay}
-          className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:scale-110 active:scale-95"
-        >
-          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-        </button>
+        {/* Center Hover Play Button */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <button
+            onClick={togglePlay}
+            className={`w-12 h-12 rounded-full bg-electric/90 text-white flex items-center justify-center shadow-xl transition-all duration-300 pointer-events-auto ${
+              isPlaying ? 'opacity-0 group-hover:opacity-100 scale-90' : 'opacity-100 scale-100'
+            }`}
+            aria-label="Play Clip"
+          >
+            {isPlaying ? (
+              <Pause className="w-5 h-5 fill-white" />
+            ) : (
+              <Play className="w-5 h-5 fill-white ml-0.5" />
+            )}
+          </button>
+        </div>
 
-        {/* Bottom Video Info Overlay */}
-        <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-end justify-between z-10">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-accent-purple px-1.5 py-0.5 rounded bg-accent-purple/20 border border-accent-purple/30">
-              {editingStyle.replace('_', ' ')}
-            </span>
-          </div>
-          <span className="text-[10px] font-mono text-slate-300">
-            {clip.start_time.toFixed(1)}s - {clip.end_time.toFixed(1)}s
+        {/* Bottom Preview Overlay (Category + Editing Style) */}
+        <div className="absolute bottom-3 inset-x-3 flex items-center justify-between z-10 pointer-events-none">
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-surface/90 text-text-muted border border-border">
+            {clip.category || 'Viral Hook'}
+          </span>
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-electric/80 text-white">
+            {editingStyle.replace('_', ' ')}
           </span>
         </div>
       </div>
 
-      {/* Card Body & Details */}
-      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 bg-surfaceElevated/60">
+      {/* Card Body Details */}
+      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
         <div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-1">
-            <Tag className="w-3 h-3 text-primary-400" />
-            <span className="font-semibold text-slate-300">{clip.category}</span>
-          </div>
-          <h3 className="text-sm font-bold text-white line-clamp-2 leading-snug group-hover:text-primary-300 transition-colors">
+          <h3 className="font-display font-extrabold text-sm text-white line-clamp-2 leading-snug group-hover:text-neon transition-colors">
             {clip.title}
           </h3>
-          <p className="text-xs text-slate-400 line-clamp-2 mt-1.5">
-            {clip.reason}
+          <p className="text-[11px] text-text-muted line-clamp-1 mt-1 font-normal">
+            {clip.reason || 'High emotional hook with abrupt retention turn'}
           </p>
         </div>
 
-        {/* Card Action Buttons */}
-        <div className="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-          {/* Quick Edit Workspace Button */}
+        {/* Action Controls Toolbar */}
+        <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
+          {/* Open in Editor Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onOpenEditor(clip);
             }}
-            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-semibold bg-surfaceElevated hover:bg-slate-700/80 text-slate-200 border border-slate-700 flex items-center justify-center gap-1.5 transition-all"
+            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-surface hover:bg-[#1F233A] text-white border border-border hover:border-electric flex items-center justify-center gap-1.5 transition-all"
+            title="Edit timing, hook pill, and subtitles"
           >
-            <Sliders className="w-3.5 h-3.5 text-accent-purple" />
-            <span>Customize</span>
+            <Sliders className="w-3.5 h-3.5 text-electric-light" />
+            <span>Edit</span>
           </button>
 
-          {/* Direct Download Button */}
+          {/* Copy YouTube Metadata Button */}
+          <button
+            onClick={handleCopyYouTube}
+            className="p-2 rounded-xl text-text-muted hover:text-white bg-surface hover:bg-[#1F233A] border border-border hover:border-neon transition-all"
+            title="Copy Title, Description & Tags for YouTube Shorts"
+          >
+            {copiedYt ? (
+              <Check className="w-4 h-4 text-neon" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
+          </button>
+
+          {/* Download Button in Electric Blue */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDownload(clip);
             }}
-            className="py-2 px-3 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white flex items-center justify-center gap-1.5 transition-all shadow-md shadow-primary-900/30"
-            title="Download ready MP4"
+            className="py-2 px-3 rounded-xl text-xs font-extrabold bg-electric hover:bg-electric-hover text-white shadow-md shadow-electric/30 flex items-center justify-center gap-1.5 transition-all hover:scale-105 active:scale-95"
+            title="Download 1080x1920 MP4"
           >
             <Download className="w-3.5 h-3.5" />
             <span>MP4</span>

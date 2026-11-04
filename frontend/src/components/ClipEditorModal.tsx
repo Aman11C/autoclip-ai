@@ -5,19 +5,22 @@ import {
   X, 
   Play, 
   Pause, 
-  RotateCcw, 
   Download, 
   Sparkles, 
   Palette, 
   Crop, 
-  Volume2, 
   Type, 
   Check, 
-  Clock,
-  Layers,
-  Flame,
-  Wand2,
-  Sliders
+  Clock, 
+  Flame, 
+  Wand2, 
+  Sliders, 
+  Youtube, 
+  Copy, 
+  Save, 
+  RefreshCw, 
+  Hash, 
+  FileText 
 } from 'lucide-react';
 import { Clip } from '../types';
 
@@ -46,13 +49,14 @@ const EDITING_STYLES = [
 ];
 
 const SUBTITLE_PRESETS = [
-  { id: 'bold_viral', label: 'Bold Viral', color: '#FACC15', font: 'Arial Black' },
-  { id: 'neon_highlight', label: 'Neon Highlight', color: '#39FF14', font: 'Impact' },
-  { id: 'minimal_pro', label: 'Minimal Pro', color: '#38BDF8', font: 'Segoe UI' },
-  { id: 'gaming_captions', label: 'Gaming Captions', color: '#FF00E5', font: 'Arial Black' },
+  { id: 'bold_viral', label: 'Neon Yellow', color: '#E8FF36', font: 'Space Grotesk' },
+  { id: 'neon_highlight', label: 'Electric Blue', color: '#343BFF', font: 'Inter' },
+  { id: 'minimal_pro', label: 'Clean White', color: '#F7F7FA', font: 'Inter' },
+  { id: 'gaming_captions', label: 'Cyber Pink', color: '#FF00E5', font: 'Impact' },
 ];
 
 export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDownload }: ClipEditorModalProps) {
+  const [activeTab, setActiveTab] = useState<'style' | 'youtube'>('style');
   const [isPlaying, setIsPlaying] = useState(false);
   const [startTime, setStartTime] = useState(clip.start_time);
   const [endTime, setEndTime] = useState(clip.end_time);
@@ -67,6 +71,22 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
   const [isRendering, setIsRendering] = useState(false);
   const [renderSuccess, setRenderSuccess] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+
+  // YouTube Shorts Publishing State
+  const [ytTitle, setYtTitle] = useState<string>(
+    clip.youtube_title || `🔥 ${clip.title} 🤯 #shorts`
+  );
+  const [ytDescription, setYtDescription] = useState<string>(
+    clip.youtube_description ||
+    `Wait until you see how this plays out... 🤯\n\n📌 Topic: ${clip.title}\n\n👉 Subscribe for daily viral moments!\n\n#shorts #viral #trending #fyp #youtubeshorts`
+  );
+  const [ytTags, setYtTags] = useState<string>(
+    clip.youtube_tags || 'shorts, youtube shorts, viral shorts, trending, fyp, podcast clips'
+  );
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isRegeneratingMeta, setIsRegeneratingMeta] = useState(false);
+  const [isSavingMeta, setIsSavingMeta] = useState(false);
+  const [metaSaveSuccess, setMetaSaveSuccess] = useState(false);
 
   const initialVideoUrl = clip.preview_url || latestVariant?.output_url || '/static/demo/clip_demo_01_VIRAL_PODCAST.mp4';
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>(initialVideoUrl);
@@ -121,15 +141,73 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
     }
   };
 
-  const duration = Math.max(1, endTime - startTime);
+  const copyToClipboard = (text: string, field: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2500);
+    }
+  };
+
+  const handleCopyFullKit = () => {
+    const fullBundle = `TITLE:\n${ytTitle}\n\nDESCRIPTION:\n${ytDescription}\n\nTAGS:\n${ytTags}`;
+    copyToClipboard(fullBundle, 'all');
+  };
+
+  const handleRegenerateMetadata = async () => {
+    setIsRegeneratingMeta(true);
+    try {
+      const res = await fetch(`/api/clips/${clip.id}/metadata/generate`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const meta = await res.json();
+        if (meta.youtube_title) setYtTitle(meta.youtube_title);
+        if (meta.youtube_description) setYtDescription(meta.youtube_description);
+        if (meta.youtube_tags) setYtTags(meta.youtube_tags);
+      }
+    } catch (err) {
+      console.error('Failed to regenerate metadata:', err);
+    } finally {
+      setIsRegeneratingMeta(false);
+    }
+  };
+
+  const handleSaveMetadata = async () => {
+    setIsSavingMeta(true);
+    setMetaSaveSuccess(false);
+    try {
+      const res = await fetch(`/api/clips/${clip.id}/metadata`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          youtube_title: ytTitle,
+          youtube_description: ytDescription,
+          youtube_tags: ytTags
+        })
+      });
+      if (res.ok) {
+        setMetaSaveSuccess(true);
+        setTimeout(() => setMetaSaveSuccess(false), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to save metadata:', err);
+    } finally {
+      setIsSavingMeta(false);
+    }
+  };
+
+  const duration = Math.max(0, endTime - startTime);
+  const titleCharCount = ytTitle.length;
+  const isTitleOverLimit = titleCharCount > 100;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-lg flex items-center justify-center p-3 md:p-6 overflow-y-auto">
-      <div className="relative w-full max-w-5xl glass-panel rounded-3xl border border-primary-500/30 shadow-2xl shadow-primary-950/80 flex flex-col md:flex-row overflow-hidden max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+      <div className="relative w-full max-w-5xl bg-[#111321] rounded-3xl border border-border shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[92vh]">
         
         {/* Left Column: 9:16 Video Player Workspace */}
-        <div className="w-full md:w-[420px] bg-slate-950 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-borderSubtle shrink-0">
-          <div className="relative aspect-[9/16] h-[460px] md:h-[520px] rounded-2xl overflow-hidden shadow-2xl shadow-black border border-slate-800 bg-black">
+        <div className="w-full md:w-[400px] bg-[#0A0C16] p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-border shrink-0">
+          <div className="relative aspect-[9/16] h-[440px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl border border-border bg-black">
             <video
               ref={videoRef}
               src={currentVideoUrl}
@@ -141,9 +219,9 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
 
             {/* In-Video Active Subtitle Simulator Overlay */}
             <div className="absolute bottom-16 inset-x-4 text-center pointer-events-none">
-              <span className="inline-block px-3 py-1 bg-black/75 rounded-lg text-white font-black text-sm uppercase tracking-wide border border-black/40 shadow-xl">
+              <span className="inline-block px-3 py-1 bg-black/80 backdrop-blur-md rounded-xl text-white font-display font-black text-xs uppercase tracking-wide border border-border shadow-xl">
                 <span>VIRAL RETENTION </span>
-                <span style={{ color: SUBTITLE_PRESETS.find(p => p.id === subtitlePreset)?.color || '#FACC15' }}>
+                <span style={{ color: SUBTITLE_PRESETS.find(p => p.id === subtitlePreset)?.color || '#E8FF36' }}>
                   SECRET
                 </span>
               </span>
@@ -152,212 +230,421 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
             {/* Center Play Button Overlay */}
             <button
               onClick={togglePlay}
-              className="absolute inset-0 m-auto w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
+              className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-electric/80 backdrop-blur-md text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-transform shadow-xl"
             >
-              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
+              {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
             </button>
           </div>
 
           {/* Quick playback info */}
-          <div className="flex items-center justify-between w-full mt-3 px-2 text-xs text-slate-400 font-mono">
+          <div className="flex items-center justify-between w-full mt-3 px-2 text-xs text-text-muted font-mono">
             <span>{startTime.toFixed(1)}s</span>
-            <span className="text-accent-cyan font-bold">Duration: {duration.toFixed(1)}s</span>
+            <span className="text-neon font-bold">Duration: {duration.toFixed(1)}s</span>
             <span>{endTime.toFixed(1)}s</span>
           </div>
         </div>
 
-        {/* Right Column: Editing Controls & Presets */}
-        <div className="flex-1 p-6 md:p-8 flex flex-col justify-between overflow-y-auto">
+        {/* Right Column: Editing Controls & Presets / YouTube Kit */}
+        <div className="flex-1 p-6 md:p-8 flex flex-col justify-between overflow-y-auto bg-[#111321]">
           <div>
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-borderSubtle mb-6">
+            <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-accent-purple/20 text-accent-purple border border-accent-purple/30">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-card text-text-muted border border-border">
                     {clip.category}
                   </span>
-                  <div className="flex items-center gap-1 text-xs font-black text-accent-emerald">
-                    <Flame className="w-3.5 h-3.5" /> {clip.virality_score}/100
+                  <div className="flex items-center gap-1 text-xs font-black text-neon">
+                    <Flame className="w-3.5 h-3.5 fill-neon" /> {clip.virality_score}% VIRAL
                   </div>
                 </div>
-                <h2 className="text-xl font-extrabold text-white">{clip.title}</h2>
+                <h2 className="font-display font-extrabold text-lg text-white truncate max-w-md">{clip.title}</h2>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-surfaceElevated transition-all"
+                className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-card transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Timeline Controls */}
-            <div className="space-y-4 mb-6">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-primary-400" />
-                Clip Boundaries & Timing
-              </label>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-xl bg-surfaceElevated/70 border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block mb-1">Start Timestamp (sec)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={startTime}
-                    onChange={(e) => setStartTime(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
-                <div className="p-3 rounded-xl bg-surfaceElevated/70 border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block mb-1">End Timestamp (sec)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={endTime}
-                    onChange={(e) => setEndTime(parseFloat(e.target.value) || startTime + 15)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
-              </div>
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-2 mb-5 p-1 bg-card rounded-2xl border border-border">
+              <button
+                type="button"
+                onClick={() => setActiveTab('style')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                  activeTab === 'style'
+                    ? 'bg-electric text-white shadow-md font-extrabold'
+                    : 'text-text-muted hover:text-white'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Video Style & Subtitles</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('youtube')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                  activeTab === 'youtube'
+                    ? 'bg-rose-600 text-white shadow-md font-extrabold'
+                    : 'text-text-muted hover:text-white'
+                }`}
+              >
+                <Youtube className="w-4 h-4 text-white" />
+                <span>YouTube Shorts Kit</span>
+              </button>
             </div>
 
-            {/* 9:16 Vertical Framing Modes */}
-            <div className="space-y-3 mb-6">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Crop className="w-3.5 h-3.5 text-accent-cyan" />
-                  Framing & Layout Style
-                </span>
-                <span className="text-[10px] text-accent-cyan font-mono uppercase bg-accent-cyan/10 px-2 py-0.5 rounded border border-accent-cyan/30">
-                  9:16 Vertical
-                </span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCropMode('smart_fullscreen')}
-                  className={`p-3.5 rounded-xl border text-left transition-all ${
-                    cropMode === 'smart_fullscreen'
-                      ? 'bg-primary-950/40 border-primary-500 text-white shadow-md'
-                      : 'bg-surfaceElevated/40 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="text-xs font-bold block text-white mb-1">👤 Smart Face Tracking</span>
-                  <span className="text-[11px] text-slate-400">Clean 9:16 full-screen tracking speaker face with smooth pans.</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCropMode('blurred_bg')}
-                  className={`p-3.5 rounded-xl border text-left transition-all ${
-                    cropMode === 'blurred_bg'
-                      ? 'bg-primary-950/40 border-primary-500 text-white shadow-md'
-                      : 'bg-surfaceElevated/40 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="text-xs font-bold block text-white mb-1">🖼️ Blurred Background</span>
-                  <span className="text-[11px] text-slate-400">Centered original video with smooth 25px Gaussian blur backdrop.</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Viblo Hook Header Banner & Smart Emojis */}
-            <div className="p-3.5 rounded-2xl bg-surfaceElevated/50 border border-slate-800 mb-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                  <Flame className="w-3.5 h-3.5 text-accent-amber" />
-                  Viblo Hook Header Pill (0s - 4.5s)
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setAutoEmojis(!autoEmojis)}
-                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
-                    autoEmojis
-                      ? 'bg-accent-emerald/20 border-accent-emerald/50 text-accent-emerald'
-                      : 'bg-slate-900 border-slate-700 text-slate-400'
-                  }`}
-                >
-                  <Sparkles className="w-3 h-3" />
-                  <span>Smart Emojis {autoEmojis ? 'ON 💰' : 'OFF'}</span>
-                </button>
-              </div>
-
-              <div>
-                <input
-                  type="text"
-                  placeholder="e.g. WAIT FOR THE END 😱 or HOW TO WIN $100K 💰"
-                  value={hookTitle}
-                  onChange={(e) => setHookTitle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-primary-500 font-semibold"
-                />
-                <span className="text-[10px] text-slate-400 block mt-1">
-                  Renders a high-contrast attention hook banner at the top of the video during the critical first 4.5 seconds.
-                </span>
-              </div>
-            </div>
-
-            {/* Subtitle Presets */}
-            <div className="space-y-3 mb-6">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <Type className="w-3.5 h-3.5 text-accent-purple" />
-                Dynamic Subtitle Presets (Word-level Animated)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {SUBTITLE_PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSubtitlePreset(p.id)}
-                    className={`p-2.5 rounded-xl border text-center transition-all ${
-                      subtitlePreset === p.id
-                        ? 'bg-surfaceElevated border-primary-400 text-white shadow-inner'
-                        : 'bg-surfaceElevated/40 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <span 
-                      className="w-3 h-3 rounded-full mx-auto mb-1.5 block"
-                      style={{ backgroundColor: p.color }}
-                    />
-                    <span className="text-xs font-bold block text-white truncate">{p.label}</span>
-                    <span className="text-[10px] text-slate-400 block font-mono">{p.font}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Editing Style Selector */}
-            <div className="space-y-3 mb-6">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <Palette className="w-3.5 h-3.5 text-accent-amber" />
-                Editing Style Variation
-              </label>
-              <div className="space-y-2">
-                {EDITING_STYLES.map((style) => (
-                  <button
-                    key={style.id}
-                    type="button"
-                    onClick={() => setEditingStyle(style.id)}
-                    className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
-                      editingStyle === style.id
-                        ? 'bg-primary-950/30 border-primary-500/60 text-white'
-                        : 'bg-surfaceElevated/30 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <div>
-                      <span className="text-xs font-bold text-white block">{style.label}</span>
-                      <span className="text-[11px] text-slate-400 block">{style.desc}</span>
+            {/* TAB 1: STYLE & TIMING */}
+            {activeTab === 'style' && (
+              <div className="space-y-5">
+                {/* Timeline Controls */}
+                <div className="space-y-3">
+                  <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2 font-mono">
+                    <Clock className="w-3.5 h-3.5 text-neon" />
+                    Clip Timing & Boundaries
+                  </label>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-card border border-border">
+                      <span className="text-[11px] text-text-muted block mb-1">Start Timestamp (sec)</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={startTime}
+                        onChange={(e) => setStartTime(parseFloat(e.target.value) || 0)}
+                        className="w-full bg-[#0A0C16] border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-electric"
+                      />
                     </div>
-                    {editingStyle === style.id && (
-                      <Check className="w-4 h-4 text-primary-400 shrink-0" />
-                    )}
-                  </button>
-                ))}
+                    <div className="p-3 rounded-xl bg-card border border-border">
+                      <span className="text-[11px] text-text-muted block mb-1">End Timestamp (sec)</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={endTime}
+                        onChange={(e) => setEndTime(parseFloat(e.target.value) || startTime + 15)}
+                        className="w-full bg-[#0A0C16] border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-electric"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 9:16 Vertical Framing Modes */}
+                <div className="space-y-3">
+                  <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center justify-between font-mono">
+                    <span className="flex items-center gap-2">
+                      <Crop className="w-3.5 h-3.5 text-electric-light" />
+                      Framing & Layout Style
+                    </span>
+                    <span className="text-[10px] text-neon font-mono uppercase bg-neon/10 px-2 py-0.5 rounded border border-neon/30">
+                      9:16 Vertical
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCropMode('smart_fullscreen')}
+                      className={`p-3 rounded-2xl border text-left transition-all ${
+                        cropMode === 'smart_fullscreen'
+                          ? 'bg-electric/20 border-electric text-white shadow-md'
+                          : 'bg-card border-border text-text-muted hover:border-border/80'
+                      }`}
+                    >
+                      <span className="text-xs font-bold block text-white mb-1">👤 Smart Face Tracking</span>
+                      <span className="text-[11px] text-text-muted">Clean 9:16 full-screen tracking speaker face with smooth pans.</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCropMode('blurred_bg')}
+                      className={`p-3 rounded-2xl border text-left transition-all ${
+                        cropMode === 'blurred_bg'
+                          ? 'bg-electric/20 border-electric text-white shadow-md'
+                          : 'bg-card border-border text-text-muted hover:border-border/80'
+                      }`}
+                    >
+                      <span className="text-xs font-bold block text-white mb-1">🖼️ Blurred Background</span>
+                      <span className="text-[11px] text-text-muted">Centered original video with smooth Gaussian blur backdrop.</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Hook Header Pill Banner */}
+                <div className="p-3.5 rounded-2xl bg-card border border-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2 font-mono">
+                      <Flame className="w-3.5 h-3.5 text-neon" />
+                      Hook Header Pill (0s - 4.5s)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setAutoEmojis(!autoEmojis)}
+                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
+                        autoEmojis
+                          ? 'bg-neon/15 border-neon/40 text-neon'
+                          : 'bg-surface border-border text-text-muted'
+                      }`}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Smart Emojis {autoEmojis ? 'ON 🔥' : 'OFF'}</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="e.g. WAIT FOR THE END 😱 or THE 3-SECOND SECRET ⚡"
+                      value={hookTitle}
+                      onChange={(e) => setHookTitle(e.target.value)}
+                      className="w-full bg-[#0A0C16] border border-border rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-electric font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Subtitle Presets */}
+                <div className="space-y-3">
+                  <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2 font-mono">
+                    <Type className="w-3.5 h-3.5 text-neon" />
+                    Dynamic Subtitle Presets
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {SUBTITLE_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSubtitlePreset(p.id)}
+                        className={`p-2.5 rounded-xl border text-center transition-all ${
+                          subtitlePreset === p.id
+                            ? 'bg-electric/25 border-electric text-white'
+                            : 'bg-card border-border text-text-muted hover:border-border/80'
+                        }`}
+                      >
+                        <span 
+                          className="w-3 h-3 rounded-full mx-auto mb-1.5 block shadow-sm"
+                          style={{ backgroundColor: p.color }}
+                        />
+                        <span className="text-xs font-bold block text-white truncate">{p.label}</span>
+                        <span className="text-[10px] text-text-muted block font-mono">{p.font}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Editing Style Selector */}
+                <div className="space-y-3">
+                  <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2 font-mono">
+                    <Palette className="w-3.5 h-3.5 text-electric-light" />
+                    Editing Style Preset
+                  </label>
+                  <div className="space-y-1.5">
+                    {EDITING_STYLES.map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => setEditingStyle(style.id)}
+                        className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                          editingStyle === style.id
+                            ? 'bg-electric/20 border-electric text-white'
+                            : 'bg-card border-border text-text-muted hover:border-border/80'
+                        }`}
+                      >
+                        <div>
+                          <span className="text-xs font-bold text-white block">{style.label}</span>
+                          <span className="text-[11px] text-text-muted block">{style.desc}</span>
+                        </div>
+                        {editingStyle === style.id && (
+                          <Check className="w-4 h-4 text-neon shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* TAB 2: YOUTUBE SHORTS PUBLISHING KIT */}
+            {activeTab === 'youtube' && (
+              <div className="space-y-5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-rose-950/20 border border-rose-500/30">
+                  <div className="flex items-center gap-2">
+                    <Youtube className="w-5 h-5 text-rose-500" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">YouTube Shorts SEO Suite</span>
+                      <span className="text-[10px] text-text-muted">1-Click Copy Ready for YouTube Studio</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleRegenerateMetadata}
+                      disabled={isRegeneratingMeta}
+                      className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-card border border-border text-white hover:border-electric flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 text-neon ${isRegeneratingMeta ? 'animate-spin' : ''}`} />
+                      <span>{isRegeneratingMeta ? 'Generating...' : 'Magic Hook'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyFullKit}
+                      className="py-1.5 px-3.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-rose-950/60"
+                    >
+                      {copiedField === 'all' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Copied All!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy Full Kit</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 1. YouTube Title Section */}
+                <div className="p-4 rounded-2xl bg-card border border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-rose-400" />
+                      <span>YouTube Shorts Title</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-mono font-semibold ${isTitleOverLimit ? 'text-rose-400 font-bold' : 'text-text-muted'}`}>
+                        {titleCharCount}/100 chars
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(ytTitle, 'title')}
+                        className="py-1 px-2.5 rounded-lg text-[11px] font-semibold bg-surface hover:bg-card text-white border border-border flex items-center gap-1 transition-all"
+                      >
+                        {copiedField === 'title' ? (
+                          <>
+                            <Check className="w-3 h-3 text-neon" />
+                            <span className="text-neon font-bold">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3 text-text-muted" />
+                            <span>Copy Title</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={ytTitle}
+                    onChange={(e) => setYtTitle(e.target.value)}
+                    className="w-full bg-[#0A0C16] border border-border rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold focus:outline-none focus:border-rose-500"
+                    placeholder="Enter clickbait YouTube Shorts title (e.g. He Bet $100K on THIS?! 😱 #shorts)"
+                  />
+                  {isTitleOverLimit && (
+                    <span className="text-[10px] text-rose-400 block font-medium">
+                      ⚠️ YouTube Shorts titles must be under 100 characters. Please shorten by {titleCharCount - 100} characters.
+                    </span>
+                  )}
+                </div>
+
+                {/* 2. YouTube Description Section */}
+                <div className="p-4 rounded-2xl bg-card border border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-neon" />
+                      <span>SEO Description & Hashtags</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(ytDescription, 'description')}
+                      className="py-1 px-2.5 rounded-lg text-[11px] font-semibold bg-surface hover:bg-card text-white border border-border flex items-center gap-1 transition-all"
+                    >
+                      {copiedField === 'description' ? (
+                        <>
+                          <Check className="w-3 h-3 text-neon" />
+                          <span className="text-neon font-bold">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 text-text-muted" />
+                          <span>Copy Description</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <textarea
+                    rows={5}
+                    value={ytDescription}
+                    onChange={(e) => setYtDescription(e.target.value)}
+                    className="w-full bg-[#0A0C16] border border-border rounded-xl p-3 text-xs text-white focus:outline-none focus:border-rose-500 font-mono leading-relaxed resize-none"
+                    placeholder="SEO description including hook, chapter highlights, and viral hashtags..."
+                  />
+                </div>
+
+                {/* 3. YouTube Studio Tags Section */}
+                <div className="p-4 rounded-2xl bg-card border border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
+                      <Hash className="w-3.5 h-3.5 text-neon" />
+                      <span>YouTube Studio Tags</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(ytTags, 'tags')}
+                      className="py-1 px-2.5 rounded-lg text-[11px] font-semibold bg-surface hover:bg-card text-white border border-border flex items-center gap-1 transition-all"
+                    >
+                      {copiedField === 'tags' ? (
+                        <>
+                          <Check className="w-3 h-3 text-neon" />
+                          <span className="text-neon font-bold">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 text-text-muted" />
+                          <span>Copy Tags</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={ytTags}
+                    onChange={(e) => setYtTags(e.target.value)}
+                    className="w-full bg-[#0A0C16] border border-border rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500 font-mono"
+                    placeholder="shorts, viral, trending, fyp, youtube shorts, best moments..."
+                  />
+                </div>
+
+                {/* Save Metadata Button */}
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  {metaSaveSuccess && (
+                    <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Saved to database!
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveMetadata}
+                    disabled={isSavingMeta}
+                    className="py-2 px-4 rounded-xl text-xs font-bold bg-card hover:bg-surface border border-border text-white flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5 text-neon" />
+                    <span>{isSavingMeta ? 'Saving...' : 'Save YouTube Metadata'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-borderSubtle flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 mt-6">
             <div className="text-xs">
               {renderError ? (
                 <span className="text-rose-400 font-semibold flex items-center gap-1.5">
@@ -369,7 +656,11 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
                   <Check className="w-4 h-4" /> Clip re-rendered with new style & updated!
                 </span>
               ) : (
-                <span className="text-slate-400">Re-renders this clip into 9:16 vertical format.</span>
+                <span className="text-text-muted">
+                  {activeTab === 'youtube'
+                    ? 'Copy metadata directly into YouTube Studio when uploading your short.'
+                    : 'Re-renders this clip into 9:16 vertical format.'}
+                </span>
               )}
             </div>
 
@@ -377,7 +668,7 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
               <button
                 type="button"
                 onClick={() => onDownload(clip)}
-                className="py-2.5 px-4 rounded-xl text-xs font-semibold bg-surfaceElevated hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 transition-all"
+                className="py-2.5 px-4 rounded-xl text-xs font-semibold bg-card hover:bg-surface text-white border border-border flex items-center gap-2 transition-all"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Download MP4</span>
@@ -387,7 +678,7 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
                 type="button"
                 onClick={handleApplyRerender}
                 disabled={isRendering}
-                className="py-2.5 px-5 rounded-xl text-xs font-bold bg-gradient-to-r from-primary-600 to-accent-purple hover:from-primary-500 hover:to-accent-purple text-white flex items-center gap-2 transition-all shadow-lg shadow-primary-900/40 disabled:opacity-50"
+                className="py-2.5 px-5 rounded-xl text-xs font-black bg-electric hover:bg-electric-hover text-white flex items-center gap-2 transition-all shadow-lg shadow-electric/40 disabled:opacity-50"
               >
                 {isRendering ? (
                   <>
@@ -396,7 +687,7 @@ export default function ClipEditorModal({ clip, onClose, onSaveAndRerender, onDo
                   </>
                 ) : (
                   <>
-                    <Wand2 className="w-3.5 h-3.5" />
+                    <Wand2 className="w-3.5 h-3.5 text-neon" />
                     <span>Apply & Re-render</span>
                   </>
                 )}

@@ -33,10 +33,10 @@ def build_video_filter(
     ass_filename: Optional[str],
     in_w: int,
     in_h: int,
-    duration: float = 30.0
+    duration: float = 30.0,
+    crop_expr: Optional[str] = None
 ) -> str:
-    """Constructs the complete FFmpeg video filtergraph pipeline with transitions and visual effects."""
-    # 1. Base Framing / Smart 9:16 Cropping centered on face / subject
+    """Constructs the complete FFmpeg video filtergraph pipeline with transitions, dynamic subject centering, and effects."""
     filters = []
 
     if crop_mode == "blurred_bg":
@@ -48,16 +48,19 @@ def build_video_filter(
         )
         filters.append(base_filter)
     else:
-        # Smart Full-Screen Cropping centered on face / speaker
+        # Smart Full-Screen Cropping centered on face / primary speaker
         crop_w = int(in_h * 9 / 16)
         if crop_w % 2 != 0:
             crop_w += 1
-            
-        ideal_x = int((center_x * in_w) - (crop_w / 2))
-        max_x = max(0, in_w - crop_w)
-        crop_x = max(0, min(ideal_x, max_x))
-        
-        filters.append(f"crop={crop_w}:{in_h}:{crop_x}:0,scale=1080:1920")
+
+        if crop_expr:
+            # Dynamic Hollywood camera following in FFmpeg (x MUST be quoted to protect commas from filter splitter)
+            filters.append(f"crop=w={crop_w}:h={in_h}:x='{crop_expr}':y=0,scale=1080:1920")
+        else:
+            ideal_x = int((center_x * in_w) - (crop_w / 2))
+            max_x = max(0, in_w - crop_w)
+            crop_x = max(0, min(ideal_x, max_x))
+            filters.append(f"crop=w={crop_w}:h={in_h}:x={crop_x}:y=0,scale=1080:1920")
 
     # 2. Style-Specific Visual Effects & Cinematic Color Grading
     if editing_style == "HIGH_ENERGY":
@@ -83,7 +86,9 @@ def build_video_filter(
 
     # 4. Burn Subtitles via relative filename
     if ass_filename:
-        filters.append(f"subtitles={ass_filename}")
+        # Wrap filename in quotes to protect from any characters
+        clean_ass = ass_filename.replace("'", "\\'")
+        filters.append(f"subtitles='{clean_ass}'")
 
     return ",".join(filters)
 
@@ -94,10 +99,14 @@ def render_clip_mp4(
     output_mp4_path: str,
     crop_mode: str = "smart_fullscreen",
     center_x: float = 0.5,
+    crop_expr: Optional[str] = None,
     editing_style: str = "VIRAL_PODCAST",
     ass_path: Optional[str] = None
-) -> str:
-    """Cuts, vertical-crops, normalizes dialogue loudness, burns captions, and exports optimized MP4."""
+) -> Dict[str, Any]:
+    """
+    MODULE 2 & 4: Renders 9:16 vertical MP4 with continuous subject tracking,
+    audio loudness normalization, and runs post-render visual verification.
+    """
     os.makedirs(os.path.dirname(os.path.abspath(output_mp4_path)), exist_ok=True)
     in_w, in_h = get_media_dimensions(source_video_path)
     duration = max(1.0, end_time - start_time)
@@ -108,7 +117,10 @@ def render_clip_mp4(
         ass_filename = os.path.basename(ass_path)
         working_dir = os.path.dirname(os.path.abspath(ass_path))
 
-    vf = build_video_filter(crop_mode, center_x, editing_style, ass_filename, in_w, in_h, duration=duration)
+    vf = build_video_filter(
+        crop_mode, center_x, editing_style, ass_filename, in_w, in_h,
+        duration=duration, crop_expr=crop_expr
+    )
     
     # Audio loudnorm for dialogue clarity + smooth fade transitions
     fade_out_st = max(1.0, duration - 0.35)
@@ -132,12 +144,16 @@ def render_clip_mp4(
         os.path.abspath(output_mp4_path)
     ]
 
-    print(f"[VideoProcessor] Rendering clip: {output_mp4_path}")
+    print(f"[VideoProcessor] Rendering clip with smooth tracking: {output_mp4_path}")
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=working_dir)
     if res.returncode != 0:
-        print(f"[VideoProcessor] Render error: {res.stderr[:300]}")
-        # Subtitle fallback if fontconfig missing
-        vf_fallback = build_video_filter(crop_mode, center_x, editing_style, None, in_w, in_h, duration=duration)
+        actual_err = res.stderr[-500:] if res.stderr else "Unknown error"
+        print(f"[VideoProcessor] Render error: {actual_err}")
+        # Safe fallback: static smart crop without complex expressions or subtitles
+        vf_fallback = build_video_filter(
+            crop_mode, center_x, editing_style, None, in_w, in_h,
+            duration=duration, crop_expr=None
+        )
         cmd_fallback = [
             FFMPEG_PATH, "-y",
             "-ss", f"{start_time:.2f}",
@@ -151,21 +167,21 @@ def render_clip_mp4(
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-ar", "44100",
             "-movflags", "+faststart",
             os.path.abspath(output_mp4_path)
         ]
-        subprocess.run(cmd_fallback, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=working_dir)
+        res_fb = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if res_fb.returncode != 0:
+            tail_err = res_fb.stderr[-600:] if res_fb.stderr else "Unknown error"
+            raise RuntimeError(f"FFmpeg render failed: {tail_err}")
 
-    # Generate a vertical thumbnail for this clip
-    thumb_path = output_mp4_path.replace(".mp4", "_thumb.jpg")
-    cmd_thumb = [
-        FFMPEG_PATH, "-y",
-        "-ss", "0.5",
-        "-i", os.path.abspath(output_mp4_path),
-        "-vframes", "1",
-        "-q:v", "2",
-        os.path.abspath(thumb_path)
-    ]
-    subprocess.run(cmd_thumb, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=working_dir)
+    # MODULE 3: VISUAL QUALITY CONTROL & FRAMING CHECK
+    from services.face_tracker import verify_vertical_framing
+    framing_result = verify_vertical_framing(output_mp4_path)
 
-    return output_mp4_path
+    return {
+        "output_path": output_mp4_path,
+        "duration": duration,
+        "framing_verification": framing_result
+    }

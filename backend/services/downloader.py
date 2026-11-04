@@ -19,55 +19,44 @@ if os.path.exists(bin_dir) and bin_dir not in os.environ.get("PATH", ""):
 def validate_youtube_url(url: str) -> bool:
     if not url:
         return False
-    youtube_regex = (
-        r'(https?://)?(www\.)?'
-        r'(youtube|youtu|youtube-nocookie)\.(com|be)/'
-        r'(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})'
-    )
-    youtube_shorts_regex = r'(https?://)?(www\.)?youtube\.com/shorts/([^&=%\?]{11})'
-    return bool(re.match(youtube_regex, url.strip()) or re.match(youtube_shorts_regex, url.strip()))
+    u = url.strip()
+    # Support youtube.com, youtu.be, m.youtube.com, music.youtube.com, shorts, live, embed, with any query params
+    if re.search(r'(youtube\.com|youtu\.be|youtube-nocookie\.com)', u, re.IGNORECASE):
+        # Must have an 11-char ID or watch/shorts/live endpoint
+        if re.search(r'(v=|/v/|youtu\.be/|/embed/|/shorts/|/live/|[a-zA-Z0-9_-]{11})', u):
+            return True
+    return False
+
+def extract_youtube_video_id(url: str) -> str:
+    """Robustly extracts 11-char video ID from any YouTube URL variation."""
+    u = url.strip()
+    patterns = [
+        r'v=([a-zA-Z0-9_-]{11})',
+        r'youtu\.be/([a-zA-Z0-9_-]{11})',
+        r'/shorts/([a-zA-Z0-9_-]{11})',
+        r'/live/([a-zA-Z0-9_-]{11})',
+        r'/embed/([a-zA-Z0-9_-]{11})',
+        r'/v/([a-zA-Z0-9_-]{11})'
+    ]
+    for p in patterns:
+        m = re.search(p, u)
+        if m:
+            return m.group(1)
+    return "sample_video"
 
 def get_video_metadata(url: str) -> Dict[str, Any]:
-    """Retrieve video metadata without downloading the full video."""
-    video_id = "sample_video"
-    match = re.search(r"v=([a-zA-Z0-9_-]{11})", url)
-    if not match:
-        match = re.search(r"youtu\.be/([a-zA-Z0-9_-]{11})", url)
-    if match:
-        video_id = match.group(1)
-
-    try:
-        import yt_dlp
-        ydl_opts = {
-            'skip_download': True,
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': True,
-            'socket_timeout': 6,
-            'retries': 1,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return {
-                "id": info.get("id", video_id),
-                "title": info.get("title", f"YouTube Video ({video_id})"),
-                "channel_name": info.get("uploader", info.get("channel", "Creator")),
-                "thumbnail_url": info.get("thumbnail") or f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-                "duration": float(info.get("duration", 300.0) or 300.0),
-                "view_count": info.get("view_count", 150000),
-                "description": info.get("description", "")[:500] if info.get("description") else "",
-            }
-    except Exception as e:
-        print(f"[Downloader] Metadata extraction fallback: {e}")
-        return {
-            "id": video_id,
-            "title": f"YouTube Video ({video_id})",
-            "channel_name": "Creator",
-            "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-            "duration": 300.0,
-            "view_count": 150000,
-            "description": "AutoClip AI automated analysis source.",
-        }
+    """Retrieve video metadata instantly without blocking HTTP responses."""
+    video_id = extract_youtube_video_id(url)
+    default_thumb = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+    return {
+        "id": video_id,
+        "title": f"YouTube Video ({video_id})",
+        "channel_name": "Creator",
+        "thumbnail_url": default_thumb,
+        "duration": 300.0,
+        "view_count": 150000,
+        "description": "AutoClip AI automated analysis source.",
+    }
 
 def download_video_and_extract_audio(
     url: str,
@@ -117,8 +106,15 @@ def download_video_and_extract_audio(
             'progress_hooks': [ydl_progress_hook] if progress_callback else [],
             'concurrent_fragment_downloads': 4,
         }
+        extracted_title = None
+        extracted_channel = None
+        extracted_duration = None
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            if info:
+                extracted_title = info.get("title")
+                extracted_channel = info.get("uploader") or info.get("channel")
+                extracted_duration = info.get("duration")
             
         candidates = [
             os.path.join(output_dir, f"{project_id}_source.mp4"),
@@ -169,5 +165,8 @@ def download_video_and_extract_audio(
     return {
         "video_path": video_out,
         "audio_path": audio_out,
-        "vtt_path": vtt_out
+        "vtt_path": vtt_out,
+        "title": extracted_title,
+        "channel_name": extracted_channel,
+        "duration": extracted_duration
     }

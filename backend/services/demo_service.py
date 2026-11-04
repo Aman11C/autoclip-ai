@@ -260,13 +260,12 @@ def seed_demo_project_data(force_rebuild: bool = True):
                 preset=item["preset"]
             )
 
-            # Compute crop center with face tracking
-            tracker_info = compute_smart_crop_centers(demo_source, item["start"], item["end"])
-            center_x = tracker_info.get("avg_center_x", 0.5)
-
             # Render Real Vertical MP4 if not already cached
             out_mp4 = os.path.join(demo_dir, f"{item['id']}_{item['style']}.mp4")
             if not os.path.exists(out_mp4) or os.path.getsize(out_mp4) < 1000:
+                tracker_info = compute_smart_crop_centers(demo_source, item["start"], item["end"])
+                center_x = tracker_info.get("avg_center_x", 0.5)
+                crop_expr = tracker_info.get("ffmpeg_crop_expr")
                 render_clip_mp4(
                     source_video_path=demo_source,
                     start_time=item["start"],
@@ -274,6 +273,7 @@ def seed_demo_project_data(force_rebuild: bool = True):
                     output_mp4_path=out_mp4,
                     crop_mode=item["crop"],
                     center_x=center_x,
+                    crop_expr=crop_expr,
                     editing_style=item["style"],
                     ass_path=ass_path
                 )

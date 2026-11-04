@@ -7,11 +7,11 @@ import {
   Video, 
   Sparkles, 
   Settings, 
-  CreditCard, 
-  Cpu, 
+  Zap,
+  PanelLeftClose,
+  Play,
   Flame,
-  ChevronRight,
-  Zap
+  Globe
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -19,9 +19,20 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   credits: number;
   totalCredits: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  onBackToWebsite?: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, credits, totalCredits }: SidebarProps) {
+export default function Sidebar({ 
+  activeTab, 
+  setActiveTab, 
+  credits, 
+  totalCredits,
+  isOpen,
+  onToggle,
+  onBackToWebsite
+}: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'My Projects', icon: FolderKanban },
@@ -33,28 +44,46 @@ export default function Sidebar({ activeTab, setActiveTab, credits, totalCredits
   const creditPercent = Math.min(100, Math.round((credits / totalCredits) * 100));
 
   return (
-    <aside className="w-64 border-r border-borderSubtle bg-surface/50 backdrop-blur-xl flex flex-col justify-between p-4 shrink-0 select-none">
-      <div>
-        {/* Brand Logo */}
-        <div className="flex items-center gap-3 px-2 py-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-600 via-accent-purple to-accent-cyan flex items-center justify-center shadow-lg shadow-primary-500/20">
-            <Flame className="w-5 h-5 text-white animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-primary-400 bg-clip-text text-transparent">
-                AutoClip
-              </span>
-              <span className="px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-accent-purple/20 text-accent-purple rounded border border-accent-purple/40">
-                AI
-              </span>
+    <aside
+      className={`border-r border-border bg-[#111321] flex flex-col justify-between shrink-0 select-none transition-all duration-300 ease-in-out relative z-30 ${
+        isOpen 
+          ? 'w-64 p-4 opacity-100 translate-x-0' 
+          : 'w-0 p-0 opacity-0 -translate-x-full overflow-hidden border-r-0 pointer-events-none'
+      }`}
+    >
+      <div className="w-56 min-w-[224px]">
+        {/* Brand Header */}
+        <div className="flex items-center justify-between px-2 py-3 mb-6">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-electric flex items-center justify-center shadow-lg shadow-electric/40">
+              <div className="w-3.5 h-3.5 bg-neon rounded-full flex items-center justify-center">
+                <Play className="w-2 h-2 text-black fill-black ml-0.2" />
+              </div>
             </div>
-            <p className="text-[11px] text-slate-400">Viral Short Generator</p>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-display font-black text-lg tracking-tight text-white">
+                  AUTOCLIP<span className="text-electric">.AI</span>
+                </span>
+              </div>
+              <p className="text-[10px] text-text-muted">Pro Video Suite</p>
+            </div>
           </div>
+
+          {/* Toggle Sidebar Button */}
+          <button
+            type="button"
+            onClick={onToggle}
+            className="p-1.5 rounded-lg text-text-muted hover:text-white hover:bg-card border border-transparent hover:border-border transition-all"
+            title="Hide sidebar (Ctrl+B)"
+            aria-label="Hide sidebar"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Navigation Items */}
-        <nav className="space-y-1">
+        <nav className="space-y-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -62,18 +91,20 @@ export default function Sidebar({ activeTab, setActiveTab, credits, totalCredits
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-primary-600/30 to-accent-purple/20 text-white border border-primary-500/30 shadow-md shadow-primary-900/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-surfaceElevated/60'
+                    ? 'bg-electric text-white shadow-lg shadow-electric/30 font-extrabold'
+                    : 'text-text-muted hover:text-white hover:bg-card'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-primary-400' : 'text-slate-400'}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-neon' : 'text-text-muted'}`} />
                   <span>{item.label}</span>
                 </div>
                 {item.badge && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-accent-rose/20 text-accent-rose rounded-full border border-accent-rose/30">
+                  <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-md ${
+                    isActive ? 'bg-neon text-black' : 'bg-neon/15 text-neon border border-neon/30'
+                  }`}>
                     {item.badge}
                   </span>
                 )}
@@ -81,42 +112,55 @@ export default function Sidebar({ activeTab, setActiveTab, credits, totalCredits
             );
           })}
         </nav>
+
+        {/* Back to Website Pill Button */}
+        {onBackToWebsite && (
+          <div className="mt-4 pt-4 border-t border-border/80">
+            <button
+              onClick={onBackToWebsite}
+              className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-text-muted hover:text-white hover:bg-card flex items-center gap-2 border border-dashed border-border hover:border-electric transition-all"
+            >
+              <Globe className="w-3.5 h-3.5 text-electric-light" />
+              <span>Back to Landing Page</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Bottom Section: Engine Status & Credit Card */}
-      <div className="space-y-3 pt-4 border-t border-borderSubtle">
-        {/* Credit Card Box */}
-        <div className="p-3.5 rounded-xl bg-surfaceElevated/70 border border-slate-800/80">
+      {/* Bottom Area: Monthly Credits Card & Engine Status */}
+      <div className="w-56 min-w-[224px] space-y-3 pt-4 border-t border-border">
+        {/* Credits Box */}
+        <div className="p-3.5 rounded-2xl bg-[#171A2B] border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-accent-amber" />
-              Usage & Credits
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-neon fill-neon" />
+              Credits
             </span>
-            <span className="text-xs font-mono font-bold text-accent-cyan">
-              {credits} <span className="text-slate-400 font-normal">/ {totalCredits}</span>
+            <span className="text-xs font-mono font-bold text-neon">
+              {credits} <span className="text-text-muted font-normal">/ {totalCredits}</span>
             </span>
           </div>
-          <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div className="w-full bg-[#0A0C16] h-2 rounded-full overflow-hidden border border-border">
             <div
-              className="h-full bg-gradient-to-r from-primary-500 via-accent-purple to-accent-cyan transition-all duration-500"
+              className="h-full bg-gradient-to-r from-electric to-neon transition-all duration-500 rounded-full"
               style={{ width: `${creditPercent}%` }}
             />
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">
-            Each viral generation uses 10 credits.
+          <p className="text-[10px] text-text-muted mt-2">
+            10 credits per AI viral short generation.
           </p>
         </div>
 
-        {/* Engine Live Badge */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surfaceElevated/40 border border-slate-800/50 text-[11px] text-slate-400">
+        {/* Engine Live Status */}
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-card border border-border text-[11px] text-text-muted">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-emerald opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-emerald"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-neon"></span>
             </span>
-            <span>AI Render Engine</span>
+            <span className="font-semibold text-white">AI Engine 60FPS</span>
           </div>
-          <span className="text-[10px] text-accent-emerald font-semibold uppercase">Ready</span>
+          <span className="text-[10px] text-neon font-black uppercase tracking-wider">Ready</span>
         </div>
       </div>
     </aside>

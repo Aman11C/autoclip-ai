@@ -16,6 +16,7 @@ from services.video_processor import render_clip_mp4, FFMPEG_PATH
 from services.face_tracker import compute_smart_crop_centers
 from services.subtitle_engine import generate_ass_subtitles
 from services.demo_service import seed_demo_project_data
+from services.metadata_generator import generate_youtube_metadata
 from tasks.worker import enqueue_pipeline_job, cancel_job
 
 app = FastAPI(
@@ -50,6 +51,9 @@ def on_startup():
 class CreateProjectRequest(BaseModel):
     url: str
     auto_analyze: bool = True
+    clip_length: Optional[str] = "auto"
+    topic_prompt: Optional[str] = ""
+    aspect_ratio: Optional[str] = "9:16"
 
 class RenderClipRequest(BaseModel):
     editing_style: str = "VIRAL_PODCAST"
@@ -59,6 +63,11 @@ class RenderClipRequest(BaseModel):
     end_time: Optional[float] = None
     hook_title: Optional[str] = None
     auto_emojis: bool = True
+
+class UpdateClipMetadataRequest(BaseModel):
+    youtube_title: Optional[str] = None
+    youtube_description: Optional[str] = None
+    youtube_tags: Optional[str] = None
 
 # Endpoints
 @app.get("/")
@@ -191,8 +200,25 @@ def start_project_analysis(id: str, db: Session = Depends(get_db)):
 @app.get("/api/projects/{id}/clips")
 def get_project_clips(id: str, db: Session = Depends(get_db)):
     clips = db.query(Clip).filter_by(project_id=id).order_by(Clip.virality_score.desc()).all()
+    project = db.query(Project).filter_by(id=id).first()
+    project_title = project.title if project else ""
+
     results = []
+    need_commit = False
     for c in clips:
+        # Auto-fill YouTube metadata if not already present
+        if not c.youtube_title or not c.youtube_description:
+            meta = generate_youtube_metadata(
+                clip_title=c.title,
+                category=c.category or "Storytelling",
+                project_title=project_title,
+                virality_score=c.virality_score
+            )
+            c.youtube_title = meta["youtube_title"]
+            c.youtube_description = meta["youtube_description"]
+            c.youtube_tags = meta["youtube_tags"]
+            need_commit = True
+
         variants = db.query(ClipVariant).filter_by(clip_id=c.id).order_by(ClipVariant.created_at.desc()).all()
         results.append({
             "id": c.id,
@@ -205,6 +231,9 @@ def get_project_clips(id: str, db: Session = Depends(get_db)):
             "category": c.category,
             "reason": c.reason,
             "preview_url": c.preview_url,
+            "youtube_title": c.youtube_title,
+            "youtube_description": c.youtube_description,
+            "youtube_tags": c.youtube_tags,
             "variants": [
                 {
                     "id": v.id,
@@ -217,6 +246,8 @@ def get_project_clips(id: str, db: Session = Depends(get_db)):
                 } for v in variants
             ]
         })
+    if need_commit:
+        db.commit()
     return results
 
 @app.get("/api/clips/{id}")
@@ -226,6 +257,21 @@ def get_clip_details(id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Clip not found")
 
     project = db.query(Project).filter_by(id=clip.project_id).first()
+    project_title = project.title if project else ""
+
+    # Auto-fill YouTube metadata if not already present
+    if not clip.youtube_title or not clip.youtube_description:
+        meta = generate_youtube_metadata(
+            clip_title=clip.title,
+            category=clip.category or "Storytelling",
+            project_title=project_title,
+            virality_score=clip.virality_score
+        )
+        clip.youtube_title = meta["youtube_title"]
+        clip.youtube_description = meta["youtube_description"]
+        clip.youtube_tags = meta["youtube_tags"]
+        db.commit()
+
     variants = db.query(ClipVariant).filter_by(clip_id=clip.id).order_by(ClipVariant.created_at.desc()).all()
     
     # Retrieve relevant transcript segment
@@ -244,7 +290,7 @@ def get_clip_details(id: str, db: Session = Depends(get_db)):
     return {
         "id": clip.id,
         "project_id": clip.project_id,
-        "project_title": project.title if project else "",
+        "project_title": project_title,
         "title": clip.title,
         "start_time": clip.start_time,
         "end_time": clip.end_time,
@@ -253,6 +299,9 @@ def get_clip_details(id: str, db: Session = Depends(get_db)):
         "category": clip.category,
         "reason": clip.reason,
         "preview_url": clip.preview_url,
+        "youtube_title": clip.youtube_title,
+        "youtube_description": clip.youtube_description,
+        "youtube_tags": clip.youtube_tags,
         "variants": [
             {
                 "id": v.id,
@@ -265,6 +314,53 @@ def get_clip_details(id: str, db: Session = Depends(get_db)):
             } for v in variants
         ],
         "transcript_segments": transcript_segments
+    }
+
+@app.patch("/api/clips/{id}/metadata")
+def update_clip_metadata(id: str, payload: UpdateClipMetadataRequest, db: Session = Depends(get_db)):
+    clip = db.query(Clip).filter_by(id=id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    
+    if payload.youtube_title is not None:
+        clip.youtube_title = payload.youtube_title.strip()[:512]
+    if payload.youtube_description is not None:
+        clip.youtube_description = payload.youtube_description.strip()
+    if payload.youtube_tags is not None:
+        clip.youtube_tags = payload.youtube_tags.strip()
+    
+    db.commit()
+    return {
+        "id": clip.id,
+        "youtube_title": clip.youtube_title,
+        "youtube_description": clip.youtube_description,
+        "youtube_tags": clip.youtube_tags
+    }
+
+@app.post("/api/clips/{id}/regenerate-metadata")
+def regenerate_clip_metadata(id: str, db: Session = Depends(get_db)):
+    clip = db.query(Clip).filter_by(id=id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    project = db.query(Project).filter_by(id=clip.project_id).first()
+    project_title = project.title if project else ""
+
+    meta = generate_youtube_metadata(
+        clip_title=clip.title,
+        category=clip.category or "Storytelling",
+        project_title=project_title,
+        virality_score=clip.virality_score
+    )
+    clip.youtube_title = meta["youtube_title"]
+    clip.youtube_description = meta["youtube_description"]
+    clip.youtube_tags = meta["youtube_tags"]
+    db.commit()
+
+    return {
+        "id": clip.id,
+        "youtube_title": clip.youtube_title,
+        "youtube_description": clip.youtube_description,
+        "youtube_tags": clip.youtube_tags
     }
 
 @app.post("/api/clips/{id}/render")
@@ -312,8 +408,9 @@ def re_render_clip(id: str, payload: RenderClipRequest, db: Session = Depends(ge
         auto_emojis=payload.auto_emojis
     )
 
-    # 3. Render MP4
+    # 3. Render MP4 with smooth time-varying smart face tracking
     out_file = os.path.join(clips_dir, f"{clip.id}_{payload.editing_style}_{int(start_time)}_{int(end_time)}.mp4")
+    crop_expr = tracker_info.get("ffmpeg_crop_expr")
     render_clip_mp4(
         source_video_path=project.video_path,
         start_time=start_time,
@@ -321,6 +418,7 @@ def re_render_clip(id: str, payload: RenderClipRequest, db: Session = Depends(ge
         output_mp4_path=out_file,
         crop_mode=payload.crop_mode,
         center_x=center_x,
+        crop_expr=crop_expr,
         editing_style=payload.editing_style,
         ass_path=ass_path
     )

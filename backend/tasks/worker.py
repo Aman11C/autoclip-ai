@@ -44,8 +44,10 @@ def update_job_step(job_id: str, step_name: str, description: str, progress: int
                 job.error_message = error
             elif progress >= 100:
                 job.status = "completed"
+                job.error_message = None
             else:
                 job.status = "running"
+                job.error_message = None
             db.commit()
     finally:
         db.close()
@@ -109,6 +111,12 @@ def run_project_pipeline_task(job_id: str, project_id: str):
             )
             project.video_path = dl_results["video_path"]
             project.audio_path = dl_results["audio_path"]
+            if dl_results.get("title"):
+                project.title = dl_results["title"]
+            if dl_results.get("channel_name"):
+                project.channel_name = dl_results["channel_name"]
+            if dl_results.get("duration"):
+                project.duration = float(dl_results["duration"])
             db.commit()
 
         # STAGE 2: Extracting audio
@@ -128,6 +136,13 @@ def run_project_pipeline_task(job_id: str, project_id: str):
             transcript_data = json.loads(existing_tx.transcript_json)
         else:
             vtt_path = dl_results.get("vtt_path")
+            if not vtt_path or not os.path.exists(vtt_path):
+                # Search project directory for any downloaded .vtt file
+                if os.path.exists(project_dir):
+                    for f in os.listdir(project_dir):
+                        if f.endswith(".vtt"):
+                            vtt_path = os.path.join(project_dir, f)
+                            break
             transcript_data = transcribe_audio_with_word_timestamps(project.audio_path, project.title, vtt_path)
             new_tx = Transcription(
                 project_id=project_id,
@@ -159,7 +174,14 @@ def run_project_pipeline_task(job_id: str, project_id: str):
 
         # Persist detected clips
         created_clip_objs = []
+        from services.metadata_generator import generate_youtube_metadata
         for c in detected_clips:
+            yt_meta = generate_youtube_metadata(
+                clip_title=c["title"],
+                category=c.get("category", "Storytelling"),
+                project_title=project.title or "",
+                virality_score=c.get("virality_score", 85)
+            )
             clip_obj = Clip(
                 project_id=project_id,
                 title=c["title"],
@@ -167,7 +189,10 @@ def run_project_pipeline_task(job_id: str, project_id: str):
                 end_time=c["end_time"],
                 virality_score=c["virality_score"],
                 reason=c["reason"],
-                category=c["category"]
+                category=c["category"],
+                youtube_title=c.get("youtube_title") or yt_meta["youtube_title"],
+                youtube_description=c.get("youtube_description") or yt_meta["youtube_description"],
+                youtube_tags=c.get("youtube_tags") or yt_meta["youtube_tags"]
             )
             db.add(clip_obj)
             db.flush()
@@ -227,8 +252,9 @@ def run_project_pipeline_task(job_id: str, project_id: str):
                 auto_emojis=True
             )
 
-            # 3. Render MP4
+            # 3. Render MP4 with smooth time-varying smart face tracking
             output_mp4 = os.path.join(clips_dir, f"{clip_obj.id}_{editing_style}.mp4")
+            crop_expr = tracker_info.get("ffmpeg_crop_expr")
             render_clip_mp4(
                 source_video_path=project.video_path,
                 start_time=clip_obj.start_time,
@@ -236,6 +262,7 @@ def run_project_pipeline_task(job_id: str, project_id: str):
                 output_mp4_path=output_mp4,
                 crop_mode=crop_mode,
                 center_x=center_x,
+                crop_expr=crop_expr,
                 editing_style=editing_style,
                 ass_path=ass_path
             )
